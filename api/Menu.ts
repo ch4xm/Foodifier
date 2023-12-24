@@ -1,10 +1,9 @@
 import { BASE_URL, LOCATION_NUM_BEFORE_DELIMITER, LOCATION_NUM_AFTER_DELIMITER, LOCATION_URL, MEAL_URL, DATE_URL } from "./URLS"
 import { JSDOM } from 'jsdom';
-import axios from 'axios'
 
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
-interface NutritionFacts {
+export interface NutritionFacts {
     calories: Number
     totalFat: string
     saturatedFat: string
@@ -16,19 +15,20 @@ interface NutritionFacts {
     sugar: string
     protein: string
     ingredients: string
-    allergens: []
+    allergens: [] // Parse allergens from nutrition facts website since they have alt text
 }
 
 interface FoodItem {
-    nutrition: NutritionFacts
+    portion: string
     price?: string
+    nutrition: NutritionFacts
 }
 
 interface FoodGroup {
     [key: string]: FoodItem
 }
 
-export async function getLocationNumbers() {
+export async function getLocationNumbers(): Promise<Record<string, string>> { // parse the base url to get the cookie number for each dining location
     let locations = {}
     let html = await (await fetch(BASE_URL)).text()
     const parser = new JSDOM(html).window.document
@@ -46,33 +46,36 @@ export async function getMenu(locationNumber: string, mealName: string = '', dat
     let parser = new JSDOM(html).window.document
 
     let groupName = ''
-    for (const tr of parser.querySelectorAll('div > table > tbody > tr')) {
+    for (const tr of parser.querySelectorAll('div > table > tbody > tr')) { // Iterate through all trs which contain food items and dividers
         let divider = tr.querySelector('div.longmenucolmenucat')
         if (divider) {
-            groupName = divider.textContent.replaceAll('--', '').trim()
-            foodItems[groupName] = {}
+            groupName = divider.textContent.replaceAll('--', '').trim() // Logic to group all food items into their corresponding divider text
+            foodItems[groupName] = {} // Initialize empty record whenever a new divider is found
         }
         else if (tr.querySelector('div.longmenucoldispname')) {
             let div = tr.querySelector('a')
-            let price = tr.querySelector('div.longmenucolprice')?.textContent;
 
+            let price = tr.querySelector('div.longmenucolprice')?.textContent; // Cafe items will have price but DH items wont, so optional parameter
             let foodName = div.textContent.trim()
-            let fullUrl: string = BASE_URL + div.href
-            let nutrition: NutritionFacts = await getNutritionFacts(fullUrl)
-
+            let nutritionUrl: string = BASE_URL + div.href // Extract nutrition page url from each item
+            let nutrition: NutritionFacts = await getNutritionFacts(nutritionUrl)
+            let portion: string = tr.querySelector('div.longmenucolportions').textContent.trim() // Store portion size as well
+            
             let foodItem: FoodItem = {
                 price: price,
-                nutrition: nutrition
+                nutrition: nutrition,
+                portion: portion,
             }
             foodItems[groupName][foodName] = foodItem
-            console.log(fullUrl, foodName)
         }
     }
 
     return foodItems
 }
 
-async function getNutritionFacts(fullUrl: string): Promise<NutritionFacts> {
+export async function getNutritionFacts(fullUrl: string): Promise<NutritionFacts> { // Parse nutrition facts of each item from its corresponding href
+    let html = await (await fetch(BASE_URL)).text()
+
     let nutrition: NutritionFacts = {
         calories: 0,
         totalFat: '0',
@@ -94,20 +97,15 @@ async function getNutritionFacts(fullUrl: string): Promise<NutritionFacts> {
 async function fetchMenuHTML(locationNumber: string, mealName: string, date: Date): Promise<string> {
     let url: string = BASE_URL + LOCATION_URL + locationNumber + (mealName != '' ? MEAL_URL : '') + mealName + DATE_URL + `${date.getMonth() + 1}/${date.getDate()}/${date.getFullYear()}` // why is month zero-indexed...
 
-    let cookie = { 'Cookie': Object.entries({
+    let cookie = { 'Cookie': Object.entries({ // UCSC menu website is weird and quirky and needs this specific cookie to work
         'WebInaCartLocation': locationNumber,
         'WebInaCartDates': '',
         'WebInaCartMeals': '',
         'WebInaCartQtys': '',
         'WebInaCartRecipes': ''
     }).map(c => c.join('=')).join('; ') }
-
     return (await fetch(url, { headers: cookie })).text() 
 }
-
-getLocationNumbers().then(response => {
-    // console.log(response)
-})
 
 getMenu('20', 'Lunch', new Date('10/23/2023')).then(response => {
     console.log(response)
