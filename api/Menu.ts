@@ -4,7 +4,7 @@ import { JSDOM } from 'jsdom';
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
 export interface NutritionFacts {
-    calories: Number
+    calories: string
     totalFat: string
     saturatedFat: string
     transFat: string
@@ -15,7 +15,7 @@ export interface NutritionFacts {
     sugar: string
     protein: string
     ingredients: string
-    allergens: [] // Parse allergens from nutrition facts website since they have alt text
+    allergens: string[] // Parse allergens from nutrition facts website since they have alt text
 }
 
 interface FoodItem {
@@ -74,23 +74,65 @@ export async function getMenu(locationNumber: string, mealName: string = '', dat
 }
 
 export async function getNutritionFacts(fullUrl: string): Promise<NutritionFacts> { // Parse nutrition facts of each item from its corresponding href
-    let html = await (await fetch(BASE_URL)).text()
+    let html = await (await fetch(fullUrl)).text()
+    // console.log(html)
+    let parser = new JSDOM(html).window.document
+    let elements: Array<HTMLElement> = Array.from(parser.querySelectorAll('font')) //map(element => element.parentElement.closest('td').textContent)
+    
+    // console.log(elements)
+    //.find(el => el.textContent === 'SomeText, text continues.');
+      // function getElementByXpath(dom: JSDOM, path: string): HTMLElement | null {
+    //     const element = document.evaluate(
+    //       path,
+    //       dom.window.document,
+    //       null,
+    //       XPathResult.FIRST_ORDERED_NODE_TYPE,
+    //       null
+    //     ).singleNodeValue as HTMLElement;
+        
+    //     return element;
+    //   }
+    let calories
+    let totalFat
+    let saturatedFat
+    let transFat
+    let cholesterol
+    let sodium
+    let totalCarbohydrates
+    let dietaryFiber
+    let sugar
+    let protein
+    let ingredients
+    let allergens
+
+    try { calories = elements.find(element => element.textContent.includes('Calories')).textContent.split(/\s/)[1] } catch (error) { calories = '--' }
+    try { totalFat = elements.find(element => element.textContent.trim() === 'Total Fat').closest('td').querySelector('font:nth-of-type(2)').textContent } catch (error) { totalFat = '--' }
+    try { saturatedFat = elements.find(element => element.textContent.trim() === 'Sat. Fat').closest('td').querySelector('font:nth-of-type(2)').textContent } catch (error) { saturatedFat = '--' }
+    try { transFat = elements.find(element => element.textContent.trim() === 'Trans Fat').closest('td').querySelector('font:nth-of-type(2)').textContent } catch (error) { transFat = '--' }
+    try { cholesterol = elements.find(element => element.textContent.trim() === 'Cholesterol').closest('td').querySelector('font:nth-of-type(2)').textContent } catch (error) {cholesterol = '--' }
+    try { sodium = elements.find(element => element.textContent.trim() === 'Sodium').closest('td').querySelector('font:nth-of-type(2)').textContent } catch (error) { sodium = '--' }
+    try { totalCarbohydrates = elements.find(element => element.textContent.trim() === 'Tot. Carb.').closest('td').querySelector('font:nth-of-type(2)').textContent } catch (error) { totalCarbohydrates = '--' }
+    try { dietaryFiber = elements.find(element => element.textContent.trim() === 'Dietary Fiber').closest('td').querySelector('font:nth-of-type(2)').textContent } catch (error) { dietaryFiber = '--' }
+    try { sugar = elements.find(element => element.textContent.trim() === 'Sugars').closest('td').querySelector('font:nth-of-type(2)').textContent } catch (error) { sugar = '--' }
+    try { protein = elements.find(element => element.textContent.trim() === 'Protein').closest('td').querySelector('font:nth-of-type(2)').textContent } catch (error) { protein = '--' }
+    try { ingredients = parser.querySelector('span.labelingredientsvalue').textContent.trim() } catch (error) { ingredients = '--' }
+    try { allergens = Array.from(parser.querySelector('span.labelwebcodesvalue').querySelectorAll('img'), (image: HTMLImageElement) => image.alt) } catch (error) { allergens = ['--'] }
 
     let nutrition: NutritionFacts = {
-        calories: 0,
-        totalFat: '0',
-        saturatedFat: '0',
-        transFat: '0',
-        cholesterol: '0',
-        sodium: '0',
-        totalCarbohydrates: '0',
-        dietaryFiber: '0',
-        sugar: '0',
-        protein: '0',
-        ingredients: '0',
-        allergens: []
+        calories: calories,
+        totalFat: totalFat,
+        saturatedFat: saturatedFat,
+        transFat: transFat,
+        cholesterol: cholesterol,
+        sodium: sodium,
+        totalCarbohydrates: totalCarbohydrates,
+        dietaryFiber: dietaryFiber,
+        sugar: sugar,
+        protein: protein,
+        ingredients: ingredients,
+        allergens: allergens,
     }
-    
+    console.log(nutrition)
     return nutrition
 }
 
