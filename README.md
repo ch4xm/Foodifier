@@ -15,6 +15,6 @@ WIP
 
 ## Running Locally
 
-To automatically install all node module requirements run `cat requirements.txt | xargs npm install -g` 
-The app was created using Expo Go.
+To automatically install all node module requirements run `cat requirements.txt | xargs npm install -g`
+
 To run on your phone, run `npx expo start` in the Foodifier folder and scan the QR code or open it through the Expo application.
