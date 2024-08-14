@@ -1,4 +1,4 @@
-import { BASE_URL, LOCATION_NUM_BEFORE_DELIMITER, LOCATION_NUM_AFTER_DELIMITER, LOCATION_URL, MEAL_URL, DATE_URL } from "./Constants"
+import { BASE_URL, LOCATION_NUM_BEFORE_DELIMITER, LOCATION_NUM_AFTER_DELIMITER, LOCATION_URL, MEAL_URL, DATE_URL, MEALS } from "./Constants"
 import { jsdom } from 'jsdom-jscore-rn';
 
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
@@ -19,9 +19,10 @@ export interface NutritionFacts {
 }
 
 interface FoodItem {
+    name: string
     portion: string
     price?: string
-    nutrition: NutritionFacts
+    nutritionUrl: string
 }
 
 interface FoodGroup {
@@ -50,13 +51,14 @@ export async function getLocationNumbers(): Promise<Record<string, string>> { //
     }
 }
 
-export async function getMenu(locationNumber: string, mealName: string = '', date: Date = new Date()): Promise<Record<string, FoodGroup>> { // Gets the meal at location name and meal name, with optional date selection\
+export async function getMeal(locationNumber: string, mealName: string = '', date: Date = new Date()): Promise<Record<string, FoodGroup>> { // Gets the meal at location name and meal name, with optional date selection\
     try {
         let html = await fetchMenuHTML(locationNumber, mealName, date)
         let foodItems: Record<string, FoodGroup> = {}
         let parser = new jsdom(html)
 
         let groupName = ''
+        // console.log(html)//, parser.querySelectorAll('div > table'))
         for (const tr of parser.querySelectorAll('div > table > tbody > tr')) { // Iterate through all trs which contain food items and dividers
             let divider = tr.querySelector('div.longmenucolmenucat')
             if (divider) {
@@ -69,12 +71,13 @@ export async function getMenu(locationNumber: string, mealName: string = '', dat
                 let price = tr.querySelector('div.longmenucolprice')?.textContent; // Cafe items will have price but DH items wont, so optional parameter
                 let foodName = div.textContent.trim()
                 let nutritionUrl: string = BASE_URL + div.href // Extract nutrition page url from each item
-                let nutrition: NutritionFacts = await getNutritionFacts(nutritionUrl)
+
                 let portion: string = tr.querySelector('div.longmenucolportions').textContent.trim() // Store portion size as well
                 
                 let foodItem: FoodItem = {
+                    name: foodName,
                     price: price,
-                    nutrition: nutrition,
+                    nutritionUrl: nutritionUrl,
                     portion: portion,
                 }
                 foodItems[groupName][foodName] = foodItem
@@ -83,7 +86,23 @@ export async function getMenu(locationNumber: string, mealName: string = '', dat
         return foodItems
     }
     catch (error) {
-        console.error(error.message)
+        console.error('getMeal():', error.message)
+        return {}
+    }
+}
+
+export async function getAllMeals(locationNumber: string, date: Date = new Date()): Promise<Record<string, Record<string, FoodGroup>>> {
+    try {
+        let menu = {}
+        for (let mealName of MEALS) {
+            let meal: Record<string, FoodGroup> = await getMeal(locationNumber, mealName, date)
+            console.log(mealName)
+            menu[mealName] = meal
+        }
+        return menu
+    }
+    catch (error) {
+        console.error('getAllMeals():', error.message)
         return {}
     }
 }
@@ -150,10 +169,14 @@ async function fetchMenuHTML(locationNumber: string, mealName: string, date: Dat
 }
 
 
-getLocationNumbers().then(response => {
-    // console.log(response)
-})
+// getLocationNumbers().then(response => {
+//     console.log(response)
+// })
 
-// getMenu('20', 'Lunch', new Date('10/23/2023')).then(response => {
+// fetchMenuHTML('40', 'Lunch', new Date()).then(response => {
+//     // console.log(response)
+// })
+
+// getAllMeals('40', new Date()).then(response => {
 //     console.log(response)
 // })

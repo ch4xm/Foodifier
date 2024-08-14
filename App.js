@@ -1,10 +1,52 @@
 import { StatusBar } from 'expo-status-bar';
 import { StyleSheet, Text, View, ScrollView, SafeAreaView, Button, Pressable, ActivityIndicator, ViewStyle } from 'react-native';
 import { MenuButton, CircleButton } from './ui/components/Buttons';
-import { getLocationNumbers } from './api/Menu';
+import { getAllMeals, getLocationNumbers, getMeal } from './api/Menu';
 import { Fragment, useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { LOCATIONS_CACHE_INVALIDATION_SECONDS } from './api/Constants';
+import { SettingsModal } from './ui/components/Modals'
+import { Ionicons } from 'react-native-vector-icons/Ionicons';
+
+export default function App() {
+
+  const [modalVisible, setModalVisible] = useState(false);
+  const [locations, setLocations] = useState(null)
+  useEffect(() => { // Populate the location buttons with parsed data, with daily caching 
+    (async() => {
+      try {
+        let locationNumbers = await getCache(cacheKeys.locations) // Try restoring from cache, otherwise reparse the location numbers data
+        if (locationNumbers == null) {
+          locationNumbers = await getLocationNumbers();
+        }
+        console.log(await getAllMeals('40'))
+        setLocations(locationNumbers)
+        await storeCache(cacheKeys.locations, locationNumbers)
+      }
+      catch (error) {
+        console.error('App(): Error fetching locations:', error);
+        setLocations(null)
+      }
+    })()
+  }, [])
+  return (
+    // <NavigationContainer>
+      <SafeAreaView style={styles.container}>
+        <SettingsModal visible={modalVisible}></SettingsModal>
+        <View horizontal style={{flexDirection: 'row', paddingBottom: '2.5%', alignItems: 'center', justifyContent: 'space-evenly', borderBottomWidth: 5, borderRadius: 5, borderBottomColor: colors.gold}}>
+            <Text style={{padding: 5, fontSize: 60, color: colors.gold, textAlign: 'center', fontWeight: '800'}}>Foodifier</Text>
+            <CircleButton color={colors.gold} backgroundColor={colors.darkest} title='x' onClick={() => setModalVisible()}></CircleButton>
+        </View>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} scrollEnabled bounces={false} contentContainerStyle={{...styles.scrollView, justifyContent: locations == null ? 'center' : 'flex-start'}}>{locations == null ? <ActivityIndicator style={styles.errorText} size='small' /> : Object.keys(locations).map((locationName) => {
+            return <Fragment key={locations[locationName]}>
+              <MenuButton backgroundColor={colors.darkest} color={colors.gold} title={locationName}></MenuButton>
+            </Fragment>
+          })}
+        </ScrollView>
+      </SafeAreaView>
+    // </NavigationContainer>
+  );
+}
 
 export const cacheKeys = {
   locations: 'locations',
@@ -44,48 +86,6 @@ async function getCache(key) {
     console.error('getCache():', error.message)
     throw error
   }
-}
-
-export default function App() {
-
-  const [locations, setLocations] = useState(null)
-
-  useEffect(() => { // Populate the location buttons with parsed data, with daily caching 
-    const fetchData = async() => {
-      try {
-        let data = await getCache(cacheKeys.locations) // Try restoring from cache, otherwise reparse the location numbers data
-        if (data == null) {
-          data = await getLocationNumbers();
-        }
-        setLocations(data)
-        await storeCache(cacheKeys.locations, data)
-      }
-      catch (error) {
-        console.error('App(): Error fetching locations:', error);
-        setLocations(null)
-      }
-    }
-
-    fetchData()
-
-  }, [])
-
-  return (
-    // <NavigationContainer>
-      <SafeAreaView style={styles.container}>
-        <View horizontal style={{flexDirection: 'row', paddingBottom: '2.5%', alignItems: 'center', justifyContent: 'space-evenly', borderBottomWidth: 5, borderRadius: 5, borderBottomColor: colors.gold}}>
-            <Text style={{padding: 5, fontSize: 60, color: colors.gold, textAlign: 'center', fontWeight: '800'}}>Foodifier</Text>
-            <CircleButton color={colors.gold} backgroundColor={colors.darkest} title='x' onClick={() => alert('Clicked on Settings button!')}></CircleButton>
-        </View>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} scrollEnabled bounces={false} contentContainerStyle={{...styles.scrollView, justifyContent: locations == null ? 'center' : 'flex-start'}}>{locations == null ? <ActivityIndicator style={styles.errorText} size='small' /> : Object.keys(locations).map((locationName) => {
-            return <Fragment key={locations[locationName]}>
-              <MenuButton backgroundColor={colors.darkest} color={colors.gold} title={locationName}></MenuButton>
-            </Fragment>
-          })}
-        </ScrollView>
-      </SafeAreaView>
-    // </NavigationContainer>
-  );
 }
 
 export const colors = StyleSheet.create({
