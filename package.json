@@ -4,23 +4,23 @@
   "main": "node_modules/expo/AppEntry.js",
   "scripts": {
     "start": "expo start",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
     "web": "expo start --web"
   },
   "dependencies": {
-    "@react-native-async-storage/async-storage": "1.18.2",
+    "@react-native-async-storage/async-storage": "1.23.1",
     "axios": "^1.6.2",
     "domutils": "^3.1.0",
-    "expo": "~49.0.15",
-    "expo-status-bar": "~1.6.0",
+    "expo": "^51.0.0",
+    "expo-status-bar": "~1.12.1",
     "htmlparser2": "^9.0.0",
     "jsdom": "^23.0.1",
     "jsdom-jscore": "^0.1.0",
     "jsdom-jscore-rn": "^0.1.8",
     "querystring": "^0.2.1",
-    "react": "18.2.0",
-    "react-native": "0.72.6",
+    "react": "^18.2.0",
+    "react-native": "0.74.5",
     "react-native-async-storage": "^0.0.1",
     "react-native-html-parser": "^0.1.0",
     "react-query": "^3.39.3",
@@ -30,16 +30,16 @@
     "util": "^0.12.5"
   },
   "devDependencies": {
-    "@babel/core": "^7.20.0",
+    "@babel/core": "^7.24.0",
     "@tsconfig/react-native": "^3.0.2",
     "@types/jest": "^29.5.11",
-    "@types/react": "^18.2.45",
+    "@types/react": "~18.2.79",
     "@types/react-native": "^0.73.0",
     "@types/react-test-renderer": "^18.0.7",
     "babel-plugin-module-resolver": "^5.0.0",
     "path": "^0.12.7",
     "react-native-fs": "^2.20.0",
-    "typescript": "^5.3.3"
+    "typescript": "~5.3.3"
   },
   "private": true
 }

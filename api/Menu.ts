@@ -1,7 +1,5 @@
-import { BASE_URL, LOCATION_NUM_BEFORE_DELIMITER, LOCATION_NUM_AFTER_DELIMITER, LOCATION_URL, MEAL_URL, DATE_URL, MEALS } from "./Constants"
+import { BASE_URL, LOCATION_NUM_BEFORE_DELIMITER, LOCATION_NUM_AFTER_DELIMITER, LOCATION_URL, MEAL_URL, DATE_URL, MEALS, LOCATION_NUMBERS, SHORT_MENU_URL, LONG_MENU_URL } from "./Constants"
 import { jsdom } from 'jsdom-jscore-rn';
-
-process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
 export interface NutritionFacts {
     calories: string
@@ -18,15 +16,22 @@ export interface NutritionFacts {
     allergens: string[] // Parse allergens from nutrition facts website since they have alt text
 }
 
-interface FoodItem {
+export interface FoodItem {
     name: string
-    portion: string
+    portion?: string
     price?: string
-    nutritionUrl: string
+    nutritionUrl?: string
 }
 
-interface FoodGroup {
+export interface FoodGroup {
     [key: string]: FoodItem
+}
+
+export type MealName = keyof typeof MEALS
+export type Meal = Record<string, FoodGroup>
+
+export type Menu = {
+    [key in keyof typeof LOCATION_NUMBERS]: Record<MealName, Meal>
 }
 
 export async function getLocationNumbers(): Promise<Record<string, string>> { // parse the base url to get the cookie number for each dining location
@@ -51,60 +56,17 @@ export async function getLocationNumbers(): Promise<Record<string, string>> { //
     }
 }
 
-export async function getMeal(locationNumber: string, mealName: string = '', date: Date = new Date()): Promise<Record<string, FoodGroup>> { // Gets the meal at location name and meal name, with optional date selection\
-    try {
-        let html = await fetchMenuHTML(locationNumber, mealName, date)
-        let foodItems: Record<string, FoodGroup> = {}
-        let parser = new jsdom(html)
-
-        let groupName = ''
-        // console.log(html)//, parser.querySelectorAll('div > table'))
-        for (const tr of parser.querySelectorAll('div > table > tbody > tr')) { // Iterate through all trs which contain food items and dividers
-            let divider = tr.querySelector('div.longmenucolmenucat')
-            if (divider) {
-                groupName = divider.textContent.replaceAll('--', '').trim() // Logic to group all food items into their corresponding divider text
-                foodItems[groupName] = {} // Initialize empty record whenever a new divider is found
-            }
-            else if (tr.querySelector('div.longmenucoldispname')) {
-                let div = tr.querySelector('a')
-
-                let price = tr.querySelector('div.longmenucolprice')?.textContent; // Cafe items will have price but DH items wont, so optional parameter
-                let foodName = div.textContent.trim()
-                let nutritionUrl: string = BASE_URL + div.href // Extract nutrition page url from each item
-
-                let portion: string = tr.querySelector('div.longmenucolportions').textContent.trim() // Store portion size as well
-                
-                let foodItem: FoodItem = {
-                    name: foodName,
-                    price: price,
-                    nutritionUrl: nutritionUrl,
-                    portion: portion,
-                }
-                foodItems[groupName][foodName] = foodItem
-            }
-        }
-        return foodItems
-    }
-    catch (error) {
-        console.error('getMeal():', error.message)
-        return {}
-    }
-}
-
-export async function getAllMeals(locationNumber: string, date: Date = new Date()): Promise<Record<string, Record<string, FoodGroup>>> {
-    try {
-        let menu = {}
-        for (let mealName of MEALS) {
-            let meal: Record<string, FoodGroup> = await getMeal(locationNumber, mealName, date)
-            console.log(mealName)
-            menu[mealName] = meal
-        }
-        return menu
-    }
-    catch (error) {
-        console.error('getAllMeals():', error.message)
-        return {}
-    }
+export async function fetchMenuHTML(locationNumber: string, mealName: string, date: Date, useShortMenu: boolean = false): Promise<string> {
+    let url: string = BASE_URL + (useShortMenu ? SHORT_MENU_URL : LONG_MENU_URL) + LOCATION_URL + locationNumber + (useShortMenu || mealName == '' ? '' : MEAL_URL + mealName) + DATE_URL + `${date.getMonth() + 1}/${date.getDate()}/${date.getFullYear()}` // why is month zero-indexed...
+    let encodedUrl = encodeURI(url)
+    let cookie = { 'Cookie': Object.entries({ // UCSC menu website is weird and quirky and needs this specific cookie to work
+        'WebInaCartLocation': locationNumber,
+        'WebInaCartDates': '',
+        'WebInaCartMeals': '',
+        'WebInaCartQtys': '',
+        'WebInaCartRecipes': ''
+    }).map(c => c.join('=')).join('; ') }
+    return (await fetch(encodedUrl, { headers: cookie })).text() 
 }
 
 export async function getNutritionFacts(fullUrl: string): Promise<NutritionFacts> { // Parse nutrition facts of each item from its corresponding href
@@ -152,31 +114,6 @@ export async function getNutritionFacts(fullUrl: string): Promise<NutritionFacts
         ingredients: ingredients,
         allergens: allergens,
     }
-    // console.log(nutrition)
     return nutrition
 }
 
-async function fetchMenuHTML(locationNumber: string, mealName: string, date: Date): Promise<string> {
-    let url: string = BASE_URL + LOCATION_URL + locationNumber + (mealName != '' ? MEAL_URL : '') + mealName + DATE_URL + `${date.getMonth() + 1}/${date.getDate()}/${date.getFullYear()}` // why is month zero-indexed...
-    let cookie = { 'Cookie': Object.entries({ // UCSC menu website is weird and quirky and needs this specific cookie to work
-        'WebInaCartLocation': locationNumber,
-        'WebInaCartDates': '',
-        'WebInaCartMeals': '',
-        'WebInaCartQtys': '',
-        'WebInaCartRecipes': ''
-    }).map(c => c.join('=')).join('; ') }
-    return (await fetch(url, { headers: cookie })).text() 
-}
-
-
-// getLocationNumbers().then(response => {
-//     console.log(response)
-// })
-
-// fetchMenuHTML('40', 'Lunch', new Date()).then(response => {
-//     // console.log(response)
-// })
-
-// getAllMeals('40', new Date()).then(response => {
-//     console.log(response)
-// })

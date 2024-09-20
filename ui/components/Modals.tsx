@@ -11,6 +11,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             <View style={styles.settingsModal}>
                 <Text>Settings</Text>
                 <Pressable>
+                    <Text>Show Locations</Text>
+
+                </Pressable>
+                <Pressable>
                     <Text>Close</Text>
                 </Pressable>
             </View>
